@@ -22,4 +22,6 @@ public class Comment {
     private int depthLevel;
 
     private LocalDateTime createdAt;
+
+    private Long parentCommentId;
 }
