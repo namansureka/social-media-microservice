@@ -5,6 +5,7 @@ import com.naman.redis.dto.CommentResponseDto;
 import com.naman.redis.dto.PostRequestDto;
 import com.naman.redis.dto.PostResponseDto;
 import com.naman.redis.services.PostService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +32,7 @@ public class PostController {
     }
 
     @PostMapping("/{postId}/comments")
-    public ResponseEntity<CommentResponseDto> addComment(@PathVariable Long postId,@RequestBody CommentRequestDto request) {
+    public ResponseEntity<CommentResponseDto> addComment(@PathVariable Long postId,@Valid @RequestBody CommentRequestDto request) {
         CommentResponseDto commentResponseDto=postService.addComment(postId,request);
         return ResponseEntity.status(HttpStatus.CREATED).body(commentResponseDto);
     }
