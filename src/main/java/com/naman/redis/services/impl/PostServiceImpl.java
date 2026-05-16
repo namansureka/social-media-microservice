@@ -1,20 +1,20 @@
 package com.naman.redis.services.impl;
-
-
 import com.naman.redis.dto.CommentRequestDto;
 import com.naman.redis.dto.CommentResponseDto;
 import com.naman.redis.dto.PostRequestDto;
 import com.naman.redis.dto.PostResponseDto;
 import com.naman.redis.entities.AuthorType;
+import com.naman.redis.entities.Bot;
 import com.naman.redis.entities.Comment;
 import com.naman.redis.entities.Post;
 import com.naman.redis.mappers.CommentMapper;
 import com.naman.redis.mappers.PostMapper;
+import com.naman.redis.repositories.BotRepository;
 import com.naman.redis.repositories.CommentRepository;
 import com.naman.redis.repositories.PostRepository;
 import com.naman.redis.services.GuardrailService;
+import com.naman.redis.services.NotificationService;
 import com.naman.redis.services.PostService;
-import jakarta.persistence.Transient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +30,8 @@ public class PostServiceImpl implements PostService {
     private final CommentMapper commentMapper;
     private final CommentRepository commentRepository;
     private final GuardrailService guardrailService;
+    private final NotificationService notificationService;
+    private final BotRepository botRepository;
 
     @Override
     public PostResponseDto createPost(PostRequestDto request) {
@@ -69,10 +71,17 @@ public class PostServiceImpl implements PostService {
             guardrailService.incrementViralityScore(postId, 50);
         }
 
-        try {
+        String notificationMessage = null;
 
+        if(request.getAuthorType() == AuthorType.BOT){
+
+            Long botId = request.getAuthorId();
+            Bot bot = botRepository.findById(botId).orElseThrow(() -> new RuntimeException("Bot not found"));
+            notificationMessage = bot.getName() + " replied to your post";
+        }
+
+        try {
             comment = commentRepository.save(comment);
-            return commentMapper.toDto(comment);
 
         } catch (Exception e) {
 
@@ -91,6 +100,14 @@ public class PostServiceImpl implements PostService {
             }
             throw e;
         }
+        if(notificationMessage != null){
+
+            notificationService.processBotInteraction(
+                    post.getAuthorId(),
+                    notificationMessage
+            );
+        }
+        return commentMapper.toDto(comment);
     }
 
     @Override
