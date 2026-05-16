@@ -50,4 +50,25 @@ public class GuardrailServiceImpl implements GuardrailService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Cooldown active");
         }
     }
+    @Override
+    public void rollbackBotCount(Long postId) {
+        redisTemplate.opsForValue()
+                .decrement("post:" + postId + ":bot_count");
+    }
+
+    @Override
+    public void rollbackCooldown(Long botId, Long humanId) {
+        redisTemplate.delete(
+                "cooldown:bot_" + botId + ":human_" + humanId
+        );
+    }
+
+    @Override
+    public void rollbackViralityScore(Long postId, int points) {
+        redisTemplate.opsForValue()
+                .decrement(
+                        "post:" + postId + ":virality_score",
+                        points
+                );
+    }
 }
