@@ -1,7 +1,7 @@
 package com.naman.redis.services.impl;
 import com.naman.redis.services.NotificationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private static final int COOLDOWN_MINUTES = 15;
 
     @Override
@@ -34,36 +34,38 @@ public class NotificationServiceImpl implements NotificationService {
             System.out.println("Push Notification Sent to User : " + message);
         } else {
             redisTemplate.opsForList().rightPush(pendingKey, message);
-            redisTemplate.opsForSet().add("pending_users", userId);
+            redisTemplate.opsForSet().add("pending_users", userId.toString());
         }
     }
 
     @Override
     public void processPendingNotifications() {
 
-        Set<Object> users = redisTemplate.opsForSet().members("pending_users");
+        Set<String> users = redisTemplate.opsForSet().members("pending_users");
         if (users == null|| users.isEmpty()) return;
 
-        for (Object userObj : users) {
+        for(String user : users) {
 
-            Long userId = Long.valueOf(userObj.toString());
+            Long userId = Long.valueOf(user);
             String pendingKey = "user:" + userId + ":pending_notifs";
             String processingKey = "user:" + userId + ":processing_notifs";
 
             if(Boolean.FALSE.equals(redisTemplate.hasKey(pendingKey))){
+
+                redisTemplate.opsForSet().remove("pending_users", userId.toString());
                 continue;
             }
 
             redisTemplate.rename(pendingKey, processingKey);
 
-            List<Object> notifications = redisTemplate.opsForList().range(processingKey, 0, -1);
+            List<String> notifications = redisTemplate.opsForList().range(processingKey, 0, -1);
 
             if(notifications == null || notifications.isEmpty()){
 
                 redisTemplate.delete(processingKey);
                 continue;
             }
-            String firstNotification = notifications.get(0).toString();
+            String firstNotification = notifications.get(0);
 
             int othersCount = notifications.size() - 1;
             if(othersCount == 0){
@@ -77,7 +79,7 @@ public class NotificationServiceImpl implements NotificationService {
                 );
             }
             redisTemplate.delete(processingKey);
-            redisTemplate.opsForSet().remove("pending_users", userId);
+            redisTemplate.opsForSet().remove("pending_users", userId.toString());
         }
     }
 }
